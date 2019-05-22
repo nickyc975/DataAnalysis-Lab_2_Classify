@@ -23,6 +23,9 @@ dependencies {
     // This dependency is found on compile classpath of this component and consumers.
     compile 'com.google.guava:guava:20.0'
 
+    // Spark dependency.
+    compile 'org.apache.spark:spark-core_2.12:2.4.3'
+
     // Use JUnit test framework
     testCompile 'junit:junit:4.12'
 }

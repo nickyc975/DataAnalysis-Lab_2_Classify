@@ -1,6 +1,8 @@
 # dirs
 .gradle/
 bin/
+build/
+data/
 
 # files
 *.class
