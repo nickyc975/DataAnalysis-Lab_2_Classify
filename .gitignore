@@ -1,0 +1,7 @@
+# dirs
+.gradle/
+bin/
+
+# files
+*.class
+*.jar
