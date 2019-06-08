@@ -12,32 +12,40 @@ public class Vector implements Serializable, Cloneable {
         this.vector = Arrays.copyOf(vector, vector.length);
     }
 
-    public int size() {
+    public int dim() {
         return this.vector.length;
+    }
+
+    public double mod() {
+        double result = 0;
+        for (double value : this.vector) {
+            result += value * value;
+        }
+        return Math.sqrt(result);
     }
 
     public void add(Vector that) {
         check(this, that);
-        for (int i = 0; i < this.size(); i++) {
+        for (int i = 0; i < this.dim(); i++) {
             this.vector[i] += that.vector[i];
         }
     }
 
     public void sub(Vector that) {
         check(this, that);
-        for (int i = 0; i < this.size(); i++) {
+        for (int i = 0; i < this.dim(); i++) {
             this.vector[i] -= that.vector[i];
         }
     }
 
     public void mul(double alpha) {
-        for (int i = 0; i < this.size(); i++) {
+        for (int i = 0; i < this.dim(); i++) {
             this.vector[i] *= alpha;
         }
     }
 
     public void div(double alpha) {
-        for (int i = 0; i < this.size(); i++) {
+        for (int i = 0; i < this.dim(); i++) {
             this.vector[i] /= alpha;
         }
     }
@@ -45,15 +53,15 @@ public class Vector implements Serializable, Cloneable {
     public double dot(Vector that) {
         check(this, that);
         double result = 0;
-        for (int i = 0; i < this.size(); i++) {
+        for (int i = 0; i < this.dim(); i++) {
             result += this.vector[i] * that.vector[i];
         }
         return result;
     }
 
-    public static Vector zero(int size) {
-        double[] vector = new double[size];
-        for (int i = 0; i < size; i++) {
+    public static Vector zero(int dim) {
+        double[] vector = new double[dim];
+        for (int i = 0; i < dim; i++) {
             vector[i] = 0;
         }
         return new Vector(vector);
@@ -94,8 +102,8 @@ public class Vector implements Serializable, Cloneable {
     }
 
     private static void check(Vector x, Vector y) {
-        if (x.size() != y.size()) {
-            throw new IllegalArgumentException("Different sizes: " + x.size() + " and " + y.size());
+        if (x.dim() != y.dim()) {
+            throw new IllegalArgumentException("Different dims: " + x.dim() + " and " + y.dim());
         }
     }
 
@@ -121,10 +129,10 @@ public class Vector implements Serializable, Cloneable {
             return false;
         } else {
             Vector that = (Vector) obj;
-            if (that.size() != this.size()) {
+            if (that.dim() != this.dim()) {
                 return false;
             } else {
-                for (int i = 0; i < this.size(); i++) {
+                for (int i = 0; i < this.dim(); i++) {
                     if (that.vector[i] != this.vector[i]) {
                         return false;
                     }
