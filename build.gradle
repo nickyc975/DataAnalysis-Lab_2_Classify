@@ -25,7 +25,6 @@ dependencies {
 
     // Spark dependencies.
     compile 'org.apache.spark:spark-core_2.12:2.4.3'
-    compile 'org.apache.spark:spark-mllib_2.12:2.4.3'
 
     // Use JUnit test framework
     testCompile 'junit:junit:4.12'
