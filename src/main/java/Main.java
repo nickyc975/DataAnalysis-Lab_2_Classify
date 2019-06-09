@@ -18,8 +18,10 @@ public class Main {
     private static final String CLASSIFY_OUTPUT = BASE_DIR + "/classify/output";
 
     public static void main(String[] args) {
-        SparkConf conf = new SparkConf().setAppName("Lab_2").setMaster("local[*]");
+        SparkConf conf = new SparkConf().setAppName("Lab_2")
+                                        .setMaster("local[*]");
         JavaSparkContext sc = new JavaSparkContext(conf);
+        sc.setLogLevel("WARN");
 
         KMeans(conf, sc);
         NaiveBayes(conf, sc);
@@ -29,9 +31,9 @@ public class Main {
     }
 
     private static void KMeans(SparkConf conf, JavaSparkContext sc) {
-        final int K = 3;
-        final int ITER_COUNT = 20;
-        final double MIN_DIFF = 1e-2;
+        final int K = 10;
+        final int ITER_COUNT = 15;
+        final double MIN_DIFF = 1e-1;
         final String OUTPUT_DIR = CLUSTER_OUTPUT + "/kmeans";
 
         int iterCount = 0;
@@ -80,6 +82,8 @@ public class Main {
             }
             oldMeans = newMeans;
             iterCount++;
+
+            conf.log().warn(String.format("K-Means: diff %f, iter count %d", diff, iterCount));
         }
 
         vectors.mapToPair(clusterFunc)
