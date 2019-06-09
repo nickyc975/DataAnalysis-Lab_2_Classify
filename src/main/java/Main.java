@@ -11,19 +11,35 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public class Main {
-    private static final int K = 3;
-    private static final int ITER_COUNT = 20;
-    private static final double MIN_DIFF = 1e-2;
-    private static final String INPUT_DIR = "hdfs://localhost:9000/user/hduser/lab_2/input";
-    private static final String OUTPUT_DIR = "hdfs://localhost:9000/user/hduser/lab_2/output";
+    private static final String BASE_DIR = "hdfs://localhost:9000/user/hduser/lab_2";
+    private static final String CLUSTER_INPUT = BASE_DIR + "/cluster/input";
+    private static final String CLUSTER_OUTPUT = BASE_DIR + "/cluster/output";
+    private static final String CLASSIFY_INPUT = BASE_DIR + "/classify/input";
+    private static final String CLASSIFY_OUTPUT = BASE_DIR + "/classify/output";
 
     public static void main(String[] args) {
-        List<Vector> newMeans, oldMeans;
-        JavaPairRDD<Integer, Tuple2<Vector, Integer>> clustered;
         SparkConf conf = new SparkConf().setAppName("Lab_2").setMaster("local[*]");
         JavaSparkContext sc = new JavaSparkContext(conf);
 
-        JavaRDD<Vector> vectors = sc.textFile(INPUT_DIR).map(s -> {
+        KMeans(conf, sc);
+        NaiveBayes(conf, sc);
+        
+        sc.close();
+        sc.stop();
+    }
+
+    private static void KMeans(SparkConf conf, JavaSparkContext sc) {
+        final int K = 3;
+        final int ITER_COUNT = 20;
+        final double MIN_DIFF = 1e-2;
+        final String OUTPUT_DIR = CLUSTER_OUTPUT + "/kmeans";
+
+        int iterCount = 0;
+        double diff = Double.MAX_VALUE;
+        List<Vector> newMeans, oldMeans;
+        JavaPairRDD<Integer, Tuple2<Vector, Integer>> clustered;
+
+        JavaRDD<Vector> vectors = sc.textFile(CLUSTER_INPUT).map(s -> {
             String[] parts = s.split(", *");
             double[] vector = new double[parts.length - 1];
             for (int i = 1; i < parts.length; i++) {
@@ -49,8 +65,6 @@ public class Main {
             return new Tuple2<>(belongsTo, new Tuple2<>(vector, 1));
         };
 
-        int iterCount = 0;
-        double diff = Double.MAX_VALUE;
         while (diff > MIN_DIFF && iterCount < ITER_COUNT) {
             clustered = vectors.mapToPair(clusterFunc);
             newMeans = clustered.reduceByKey((x, y) -> {
@@ -70,8 +84,10 @@ public class Main {
 
         vectors.mapToPair(clusterFunc)
                .saveAsTextFile(OUTPUT_DIR);
-        sc.close();
-        sc.stop();
+    }
+
+    private static void NaiveBayes(SparkConf conf, JavaSparkContext sc) {
+
     }
 
     private static String vectorsToString(List<Vector> vectors) {
