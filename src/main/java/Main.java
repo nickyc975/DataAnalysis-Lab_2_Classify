@@ -12,12 +12,14 @@ import java.util.stream.Collectors;
 
 public class Main {
     private static final int K = 3;
-    private static final int ITER_COUNT = 10;
+    private static final int ITER_COUNT = 20;
+    private static final double MIN_DIFF = 1e-2;
     private static final String INPUT_DIR = "hdfs://localhost:9000/user/hduser/lab_2/input";
     private static final String OUTPUT_DIR = "hdfs://localhost:9000/user/hduser/lab_2/output";
 
     public static void main(String[] args) {
-        JavaPairRDD<Vector, Tuple2<Vector, Integer>> clustered;
+        List<Vector> newMeans, oldMeans;
+        JavaPairRDD<Integer, Tuple2<Vector, Integer>> clustered;
         SparkConf conf = new SparkConf().setAppName("Lab_2").setMaster("local[*]");
         JavaSparkContext sc = new JavaSparkContext(conf);
 
@@ -30,37 +32,43 @@ public class Main {
             return new Vector(vector);
         });
 
-        conf.set("means", vectorsToString(vectors.takeSample(false, K)));
+        oldMeans = vectors.takeSample(false, K);
+        conf.set("means", vectorsToString(oldMeans));
 
-        PairFunction<Vector, Vector, Tuple2<Vector, Integer>> clusterFunc = vector -> {
+        PairFunction<Vector, Integer, Tuple2<Vector, Integer>> clusterFunc = vector -> {
             List<Vector> means = stringToVectors(conf.get("means"));
-            Vector belongsTo = means.get(0);
+            int belongsTo = 0;
             double distance, minDistance = Double.MAX_VALUE;
-            for (Vector mean : means) {
-                distance = Vector.sub(mean, vector).mod();
+            for (int i = 0; i < means.size(); i++) {
+                distance = Vector.sub(means.get(i), vector).mod();
                 if (distance < minDistance) {
-                    belongsTo = mean;
+                    belongsTo = i;
                     minDistance = distance;
                 }
             }
             return new Tuple2<>(belongsTo, new Tuple2<>(vector, 1));
         };
 
-        for (int i = 0; i < ITER_COUNT; i++) {
+        int iterCount = 0;
+        double diff = Double.MAX_VALUE;
+        while (diff > MIN_DIFF && iterCount < ITER_COUNT) {
             clustered = vectors.mapToPair(clusterFunc);
-    
-            conf.set("means", vectorsToString(
-                clustered.reduceByKey((x, y) -> {
-                    return new Tuple2<Vector,Integer>(Vector.add(x._1(), y._1()), x._2() + y._2());
-                }).values()
-                .map(value -> Vector.div(value._1(), value._2()))
-                .collect()
-            ));
+            newMeans = clustered.reduceByKey((x, y) -> {
+                           return new Tuple2<Vector,Integer>(Vector.add(x._1(), y._1()), x._2() + y._2());
+                       }).values()
+                       .map(value -> Vector.div(value._1(), value._2()))
+                       .collect();
+            conf.set("means", vectorsToString(newMeans));
+
+            diff = 0;
+            for (int i = 0; i < newMeans.size(); i++) {
+                diff += Vector.sub(newMeans.get(i), oldMeans.get(i)).mod();
+            }
+            oldMeans = newMeans;
+            iterCount++;
         }
 
         vectors.mapToPair(clusterFunc)
-               .groupByKey()
-               .values()
                .saveAsTextFile(OUTPUT_DIR);
         sc.close();
         sc.stop();
@@ -68,9 +76,9 @@ public class Main {
 
     private static String vectorsToString(List<Vector> vectors) {
         return vectors.stream()
-                    .map(Vector::toString)
-                    .reduce((s1, s2) -> s1 + "\n" + s2)
-                    .orElse("");
+                      .map(Vector::toString)
+                      .reduce((s1, s2) -> s1 + "\n" + s2)
+                      .orElse("");
     }
 
     private static List<Vector> stringToVectors(String str) {
