@@ -12,8 +12,21 @@ public class Vector implements Serializable, Cloneable {
         this.vector = Arrays.copyOf(vector, vector.length);
     }
 
+    public Vector(int dim, double value) {
+        this.vector = new double[dim];
+        Arrays.fill(this.vector, value);
+    }
+
     public int dim() {
         return this.vector.length;
+    }
+
+    public double get(int index) {
+        return this.vector[index];
+    }
+
+    public void set(int index, double value) {
+        this.vector[index] = value;
     }
 
     public double mod() {
@@ -24,30 +37,34 @@ public class Vector implements Serializable, Cloneable {
         return Math.sqrt(result);
     }
 
-    public void add(Vector that) {
+    public Vector add(Vector that) {
         check(this, that);
         for (int i = 0; i < this.dim(); i++) {
             this.vector[i] += that.vector[i];
         }
+        return this;
     }
 
-    public void sub(Vector that) {
+    public Vector sub(Vector that) {
         check(this, that);
         for (int i = 0; i < this.dim(); i++) {
             this.vector[i] -= that.vector[i];
         }
+        return this;
     }
 
-    public void mul(double alpha) {
+    public Vector mul(double alpha) {
         for (int i = 0; i < this.dim(); i++) {
             this.vector[i] *= alpha;
         }
+        return this;
     }
 
-    public void div(double alpha) {
+    public Vector div(double alpha) {
         for (int i = 0; i < this.dim(); i++) {
             this.vector[i] /= alpha;
         }
+        return this;
     }
 
     public double dot(Vector that) {
@@ -59,36 +76,24 @@ public class Vector implements Serializable, Cloneable {
         return result;
     }
 
-    public static Vector zero(int dim) {
-        double[] vector = new double[dim];
-        for (int i = 0; i < dim; i++) {
-            vector[i] = 0;
-        }
-        return new Vector(vector);
+    public static double mod(Vector vector) {
+        return vector.mod();
     }
 
     public static Vector add(Vector x, Vector y) {
-        Vector result = x.clone();
-        result.add(y);
-        return result;
+        return x.clone().add(y);
     }
 
     public static Vector sub(Vector x, Vector y) {
-        Vector result = x.clone();
-        result.sub(y);
-        return result;
+        return x.clone().sub(y);
     }
 
     public static Vector mul(Vector vector, double alpha) {
-        Vector result = vector.clone();
-        result.mul(alpha);
-        return result;
+        return vector.clone().mul(alpha);
     }
 
     public static Vector div(Vector vector, double alpha) {
-        Vector result = vector.clone();
-        result.div(alpha);
-        return result;
+        return vector.clone().div(alpha);
     }
 
     public static double dot(Vector x, Vector y) {

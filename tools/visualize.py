@@ -4,8 +4,8 @@ import pickle
 cluster_result = []
 with open("../data/part-00000", "r") as result:
     lines = result.readlines()
-    for line in lines:
-        cluster_result.append(eval(line)[0])
+    for i in range(10000):
+        cluster_result.append(eval(lines[i])[0])
 
 # 从pickle文件读取降维结果
 with open("../data/usdata.pickle", "rb") as usdata:
