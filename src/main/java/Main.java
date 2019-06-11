@@ -152,7 +152,9 @@ public class Main {
             return value._1 == cls ? 1 : 0;
         }).reduce((x, y) -> x + y);
         double correctness = (double)correct / (double)testSet.count();
-        conf.log().warn(String.format("correct: %d, total: %d, correctness: %f", correct, testSet.count(), correctness));
+        conf.log().warn(String.format(
+            "correct: %d, total: %d, correctness: %f", correct, testSet.count(), correctness
+        ));
     }
 
     private static String vectorsToString(List<Vector> vectors) {
