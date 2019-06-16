@@ -30,7 +30,8 @@ public class Main {
         sc.setLogLevel("WARN");
 
         // KMeans(conf, sc);
-        NaiveBayes(conf, sc);
+        // NaiveBayes(conf, sc);
+        LogisticRegression(conf, sc);
         
         sc.close();
         sc.stop();
@@ -150,6 +151,57 @@ public class Main {
                 }
             }
             return value._1 == cls ? 1 : 0;
+        }).reduce((x, y) -> x + y);
+        double correctness = (double)correct / (double)testSet.count();
+        conf.log().warn(String.format(
+            "correct: %d, total: %d, correctness: %f", correct, testSet.count(), correctness
+        ));
+    }
+
+    private static void LogisticRegression(SparkConf conf, JavaSparkContext sc) {
+        JavaPairRDD<Integer, Vector> trainSet = sc.textFile(CLASSIFY_INPUT + "/train").mapToPair(s -> {
+            String[] parts = s.split(", *");
+            double[] vector = new double[parts.length - 1];
+            for (int i = 1; i < parts.length; i++) {
+                vector[i - 1] = Double.parseDouble(parts[i]);
+            }
+            return new Tuple2<>((int) Double.parseDouble(parts[0]), new Vector(vector));
+        });
+
+        JavaPairRDD<Integer, Vector> testSet = sc.textFile(CLASSIFY_INPUT + "/test").mapToPair(s -> {
+            String[] parts = s.split(", *");
+            double[] vector = new double[parts.length - 1];
+            for (int i = 1; i < parts.length; i++) {
+                vector[i - 1] = Double.parseDouble(parts[i]);
+            }
+            return new Tuple2<>((int) Double.parseDouble(parts[0]), new Vector(vector));
+        });
+
+        int count = 0;
+        double delta = 1, eta = 2e-6, lambda = 1e0;
+        int dimension = trainSet.take(1).get(0)._2.dim();
+        Vector deltaVec, classifier = new Vector(dimension, 0);
+        while (delta > 7.5e-2 && count < 100) {
+            deltaVec = trainSet.map(tuple -> {
+                double exp = Math.pow(Math.E, classifier.dot(tuple._2));
+                return Vector.mul(tuple._2, tuple._1 - exp / (1 + exp));
+            })
+            .reduce((v1, v2) -> v1.add(v2))
+            .mul(eta);
+
+            classifier.add(Vector.mul(classifier, eta * lambda).add(deltaVec));
+            delta = deltaVec.dot(deltaVec) / classifier.dot(classifier);
+            count++;
+            conf.log().warn(String.format("W: %s, delta: %f", classifier.toString(), delta));
+        }
+
+        int correct = testSet.map(value -> {
+            double cls = classifier.dot(value._2);
+            if ((cls < 0 && value._1 == 0) || (cls > 0 && value._1 == 1)) {
+                return 1;
+            } else {
+                return 0;
+            }
         }).reduce((x, y) -> x + y);
         double correctness = (double)correct / (double)testSet.count();
         conf.log().warn(String.format(
