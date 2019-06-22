@@ -1,5 +1,6 @@
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.PairFunction;
+import org.apache.spark.storage.StorageLevel;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.SparkConf;
@@ -10,6 +11,7 @@ import scala.Tuple3;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 public class Main {
@@ -30,8 +32,9 @@ public class Main {
         sc.setLogLevel("WARN");
 
         // KMeans(conf, sc);
+        KMedoids(conf, sc);
         // NaiveBayes(conf, sc);
-        LogisticRegression(conf, sc);
+        // LogisticRegression(conf, sc);
         
         sc.close();
         sc.stop();
@@ -91,6 +94,82 @@ public class Main {
             iterCount++;
 
             conf.log().warn(String.format("K-Means: diff %f, iter count %d", diff, iterCount));
+        }
+
+        vectors.mapToPair(clusterFunc)
+               .saveAsTextFile(OUTPUT_DIR);
+    }
+
+    private static void KMedoids(SparkConf conf, JavaSparkContext sc) {
+        final int K = 10;
+        final int ITER_COUNT = 15;
+        final double MIN_DIFF = 1e0;
+        final String OUTPUT_DIR = CLUSTER_OUTPUT + "/kmedoids";
+
+        int iterCount = 0;
+        double diff = Double.MAX_VALUE;
+        List<Vector> newMedoids, oldMedoids;
+        JavaPairRDD<Integer, Tuple2<Vector, Integer>> clustered;
+
+        JavaRDD<Vector> vectors = sc.textFile(CLUSTER_INPUT).map(s -> {
+            String[] parts = s.split(", *");
+            double[] vector = new double[parts.length - 1];
+            for (int i = 1; i < parts.length; i++) {
+                vector[i - 1] = Double.parseDouble(parts[i]);
+            }
+            return new Vector(vector);
+        });
+
+        oldMedoids = vectors.takeSample(false, K);
+        conf.set("medoids", vectorsToString(oldMedoids));
+
+        PairFunction<Vector, Integer, Tuple2<Vector, Integer>> clusterFunc = vector -> {
+            List<Vector> medoids = stringToVectors(conf.get("medoids"));
+            int belongsTo = 0;
+            double distance, minDistance = Double.MAX_VALUE;
+            for (int i = 0; i < medoids.size(); i++) {
+                distance = Vector.sub(medoids.get(i), vector).mod();
+                if (distance < minDistance) {
+                    belongsTo = i;
+                    minDistance = distance;
+                }
+            }
+            return new Tuple2<>(belongsTo, new Tuple2<>(vector, 1));
+        };
+
+        while (diff > MIN_DIFF && iterCount < ITER_COUNT) {
+            clustered = vectors.mapToPair(clusterFunc);
+            Map<Integer, Vector> means = clustered.reduceByKey((x, y) -> {
+                return new Tuple2<Vector, Integer>(Vector.add(x._1, y._1), x._2 + y._2);
+            })
+            .mapToPair(tuple -> {
+                return new Tuple2<Integer, Vector>(tuple._1, Vector.div(tuple._2._1, tuple._2._2));
+            })
+            .collectAsMap();
+
+            newMedoids = clustered.mapToPair(tuple -> {
+                Vector mean = means.get(tuple._1);
+                Vector vector = tuple._2._1;
+                double distance = Vector.sub(vector, mean).mod();
+                return new Tuple2<Integer, Tuple2<Double, Vector>>(tuple._1, new Tuple2<>(distance, vector));
+            })
+            .reduceByKey((x, y) -> {
+                return x._1 < y._1 ? x : y;
+            })
+            .map(tuple -> tuple._2._2)
+            .collect();
+
+            conf.set("medoids", vectorsToString(newMedoids));
+
+            diff = 0;
+            for (int i = 0; i < newMedoids.size(); i++) {
+                diff += Math.sqrt(Vector.sub(newMedoids.get(i), oldMedoids.get(i)).mod());
+            }
+            diff /= newMedoids.size();
+            oldMedoids = newMedoids;
+            iterCount++;
+
+            conf.log().warn(String.format("K-Medoids: diff %f, iter count %d", diff, iterCount));
         }
 
         vectors.mapToPair(clusterFunc)
