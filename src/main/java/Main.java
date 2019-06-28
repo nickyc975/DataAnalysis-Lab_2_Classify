@@ -32,9 +32,9 @@ public class Main {
         sc.setLogLevel("WARN");
 
         // KMeans(conf, sc);
-        KMedoids(conf, sc);
+        // KMedoids(conf, sc);
         // NaiveBayes(conf, sc);
-        // LogisticRegression(conf, sc);
+        LogisticRegression(conf, sc);
         
         sc.close();
         sc.stop();
@@ -257,7 +257,7 @@ public class Main {
         });
 
         int count = 0;
-        double delta = 1, eta = 2e-6, lambda = 1e0;
+        double delta = 1, eta = 2e-6, lambda = 1e-2;
         int dimension = trainSet.take(1).get(0)._2.dim();
         Vector deltaVec, classifier = new Vector(dimension, 0);
         while (delta > 7.5e-2 && count < 100) {
@@ -269,7 +269,7 @@ public class Main {
             .mul(eta);
 
             classifier.add(Vector.mul(classifier, eta * lambda).add(deltaVec));
-            delta = deltaVec.dot(deltaVec) / classifier.dot(classifier);
+            delta = deltaVec.mod() / classifier.mod();
             count++;
             conf.log().warn(String.format("W: %s, delta: %f", classifier.toString(), delta));
         }
